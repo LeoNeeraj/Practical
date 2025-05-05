@@ -1,0 +1,98 @@
+#include <iostream>
+#include <cstdlib>   // for rand(), srand()
+#include <ctime>     // for time()
+#include <omp.h>     // for OpenMP
+#include <iomanip>   // for setprecision()
+#include <chrono>    // for time measurements
+using namespace std;
+using namespace std::chrono;
+
+// Pure parallel functions with no internal timing
+int parallelMin(int arr[], int n)
+{
+    int min_val = arr[0];
+#pragma omp parallel for reduction(min : min_val)
+    for (int i = 1; i < n; i++)
+    {
+        if (arr[i] < min_val)
+        {
+            min_val = arr[i];
+        }
+    }
+    return min_val;
+}
+
+int parallelMax(int arr[], int n)
+{
+    int max_val = arr[0];
+#pragma omp parallel for reduction(max : max_val)
+    for (int i = 1; i < n; i++)
+    {
+        if (arr[i] > max_val)
+        {
+            max_val = arr[i];
+        }
+    }
+    return max_val;
+}
+
+int parallelSum(int arr[], int n)
+{
+    int sum = 0;
+#pragma omp parallel for reduction(+ : sum)
+    for (int i = 0; i < n; i++)
+    {
+        sum += arr[i];
+    }
+    return sum;
+}
+
+float parallelAverage(int arr[], int n)
+{
+    int sum = parallelSum(arr, n);
+    return float(sum) / n;
+}
+
+int main()
+{
+    int n = 1000000;
+    cout << "Array size: " << n << endl;
+
+    int arr[n];
+    srand(time(0));
+    for (int i = 0; i < n; ++i)
+    {
+        arr[i] = rand() % 10000;
+    }
+
+    // Time measurement for minimum
+    auto start = high_resolution_clock::now();
+    int min_val = parallelMin(arr, n);
+    auto end = high_resolution_clock::now();
+    cout << "Minimum value: " << min_val << endl;
+    cout << "Time taken for Min: " << duration_cast<milliseconds>(end - start).count() << " ms\n\n";
+
+    // Time measurement for maximum
+    start = high_resolution_clock::now();
+    int max_val = parallelMax(arr, n);
+    end = high_resolution_clock::now();
+    cout << "Maximum value: " << max_val << endl;
+    cout << "Time taken for Max: " << duration_cast<milliseconds>(end - start).count() << " ms\n\n";
+
+    // Time measurement for sum
+    start = high_resolution_clock::now();
+    int sum = parallelSum(arr, n);
+    end = high_resolution_clock::now();
+    cout << "Sum of values: " << sum << endl;
+    cout << "Time taken for Sum: " << duration_cast<milliseconds>(end - start).count() << " ms\n\n";
+
+    // Time measurement for average
+    start = high_resolution_clock::now();
+    float avg = parallelAverage(arr, n);
+    end = high_resolution_clock::now();
+    cout << fixed << setprecision(2);
+    cout << "Average of values: " << avg << endl;
+    cout << "Time taken for Average: " << duration_cast<milliseconds>(end - start).count() << " ms\n";
+
+    return 0;
+}

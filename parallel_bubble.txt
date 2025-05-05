@@ -1,0 +1,87 @@
+#include <iostream>
+#include <cstdlib>   // for rand(), srand()
+#include <ctime>     // for time()
+#include <chrono>    // for measuring time
+#include <omp.h>     // for OpenMP
+using namespace std;
+
+void sequentialBubbleSort(int arr[], int n) {
+    bool swapped = true;
+    while (swapped) {
+        swapped = false;
+        for (int i = 0; i < n - 1; i++) {
+            if (arr[i] > arr[i + 1]) {
+                swap(arr[i], arr[i + 1]);
+                swapped = true;
+            }
+        }
+    }
+}
+
+void parallelOddEvenSort(int arr[], int n) {
+    bool isSorted = false;
+
+    while (!isSorted) {
+        isSorted = true;
+
+        // Even phase
+        #pragma omp parallel for shared(arr)
+        for (int i = 0; i < n - 1; i += 2) {
+            if (arr[i] > arr[i + 1]) {
+                swap(arr[i], arr[i + 1]);
+                isSorted = false;
+            }
+        }
+
+        // Odd phase
+        #pragma omp parallel for shared(arr)
+        for (int i = 1; i < n - 1; i += 2) {
+            if (arr[i] > arr[i + 1]) {
+                swap(arr[i], arr[i + 1]);
+                isSorted = false;
+            }
+        }
+    }
+}
+
+int main() {
+    const int n = 1000;
+    int arr[n], arr_copy[n];
+
+    cout << "Generating " << n << " random numbers...\n";
+
+    srand(time(0)); // Seed for random numbers
+
+    for (int i = 0; i < n; i++) {
+        arr[i] = rand() % 10000;   // Random number between 0 and 9999
+        arr_copy[i] = arr[i];      // Copy for parallel sorting
+    }
+
+    // Sequential sorting and timing
+    auto seqStart = chrono::high_resolution_clock::now();
+    sequentialBubbleSort(arr, n);
+    auto seqEnd = chrono::high_resolution_clock::now();
+
+    // Parallel sorting and timing
+    auto parStart = chrono::high_resolution_clock::now();
+    parallelOddEvenSort(arr_copy, n);
+    auto parEnd = chrono::high_resolution_clock::now();
+
+    // Output first 10 elements of both sorted arrays
+    cout << "\nFirst 10 elements (Sequential): ";
+    for (int i = 0; i < 10; i++) cout << arr[i] << " ";
+
+    cout << "\nFirst 10 elements (Parallel): ";
+    for (int i = 0; i < 10; i++) cout << arr_copy[i] << " ";
+    cout << endl;
+
+    // Time results
+    chrono::duration<double> seqTime = seqEnd - seqStart;
+    chrono::duration<double> parTime = parEnd - parStart;
+
+    cout << "\nSequential Time: " << seqTime.count() << " seconds";
+    cout << "\nParallel Time: " << parTime.count() << " seconds";
+    cout << "\nSpeedup: " << seqTime.count() / parTime.count() << "x\n";
+
+    return 0;
+}
