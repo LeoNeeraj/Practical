@@ -1,4 +1,4 @@
-
+//multiply<<<blocks, threads>>>(X, Y, Z, N);
 %%writefile multiplication.cu
 
 #include 
