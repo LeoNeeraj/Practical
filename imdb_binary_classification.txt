@@ -1,0 +1,158 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers,models
+
+# Load IMDB dataset
+imdb = keras.datasets.imdb
+(train_data, train_labels), (test_data, test_labels) = imdb.load_data(num_words=10000)
+
+word_index = imdb.get_word_index()  # Load word-to-index dictionary
+reverse_word_index = {value: key for key, value in word_index.items()}
+decoded_review = ' '.join([reverse_word_index.get(i - 3, '?') for i in train_data[0]])
+print(decoded_review)
+
+
+
+def vectorize_sequences(sequences, dimension=10000):
+    results = np.zeros((len(sequences), dimension))  # Creates an all-zero matrix of shape (num_samples, 10000)
+    for i, sequence in enumerate(sequences):
+        results[i, sequence] = 1  # Sets specific indices to 1 (one-hot encoding)
+    return results
+
+# Vectorize training and test data
+X_train = vectorize_sequences(train_data)
+X_test = vectorize_sequences(test_data)
+X_train[0]
+X_train.shape
+# Convert labels to NumPy arrays of type float32
+y_train = np.asarray(train_labels).astype('float32')
+y_test = np.asarray(test_labels).astype('float32')
+
+# Define the model
+model = models.Sequential()
+
+# Input Layer + First Hidden Layer (16 neurons, ReLU activation)
+model.add(layers.Dense(16, activation='relu', input_shape=(10000,)))
+
+# Second Hidden Layer (16 neurons, ReLU activation)
+model.add(layers.Dense(16, activation='relu'))
+
+# Output Layer (1 neuron, Sigmoid activation for binary classification)
+model.add(layers.Dense(1, activation='sigmoid'))
+
+from tensorflow.keras import optimizers, losses, metrics
+# Compile the model
+model.compile(
+    optimizer=optimizers.RMSprop(learning_rate=0.001),  # RMSprop optimizer with a learning rate of 0.001
+    loss=losses.binary_crossentropy,  # Binary cross-entropy loss for binary classification
+    metrics=[metrics.binary_accuracy]  # Track binary accuracy during training
+)
+
+# Split the first 10,000 samples for validation
+X_val = X_train[:10000]   # First 10,000 samples for validation
+partial_X_train = X_train[10000:]  # Remaining samples for training
+
+# Split labels accordingly
+y_val = y_train[:10000]   # First 10,000 labels for validation
+partial_y_train = y_train[10000:]  # Remaining labels for training
+
+# Train the model
+history = model.fit(
+    partial_X_train,  # Training data (excluding validation set)
+    partial_y_train,  # Training labels
+    epochs=20,  # Train for 20 epochs
+    batch_size=512,  # Process 512 samples per batch
+    validation_data=(X_val, y_val)  # Validate using the validation set
+)
+
+# Extract history dictionary
+history_dict = history.history
+# Display available keys in history
+print(history_dict.keys())
+
+dict_keys(['binary_accuracy', 'loss', 'val_binary_accuracy', 'val_loss'])
+
+# Extract loss values
+loss_values = history_dict['loss']  # Training loss
+val_loss_values = history_dict['val_loss']  # Validation loss
+# Get the number of epochs
+epochs = range(1, len(loss_values) + 1)
+# Plot training and validation loss
+plt.plot(epochs, loss_values, 'g', label="Training Loss")  # Green line for training loss
+plt.plot(epochs, val_loss_values, 'b', label="Validation Loss")  # Blue line for validation loss
+# Formatting the plot
+plt.title('Training and Validation Loss')  # Title of the plot
+plt.xlabel('Epochs')  # X-axis label
+plt.ylabel('Loss Value')  # Y-axis label
+plt.legend()  # Show legend (Training Loss, Validation Loss)
+# Display the plot
+plt.show()
+
+# Extract accuracy values
+acc_values = history_dict['binary_accuracy']  # Training accuracy
+val_acc_values = history_dict['val_binary_accuracy']  # Validation accuracy
+
+# Get the number of epochs
+epochs = range(1, len(acc_values) + 1)
+
+# Plot training and validation accuracy
+plt.plot(epochs, acc_values, 'g', label="Training Accuracy")  # Green line for training accuracy
+plt.plot(epochs, val_acc_values, 'b', label="Validation Accuracy")  # Blue line for validation accuracy
+
+# Formatting the plot
+plt.title('Training and Validation Accuracy')  # Title of the plot
+plt.xlabel('Epochs')  # X-axis label
+plt.ylabel('Accuracy')  # Y-axis label
+plt.legend()  # Show legend (Training Accuracy, Validation Accuracy)
+
+# Display the plot
+plt.show()
+
+# Retrain the model for only 3 epochs
+history = model.fit(
+    partial_X_train,  # Training data (excluding validation set)
+    partial_y_train,  # Training labels
+    epochs=3,  # Train for only 3 epochs
+    batch_size=512,  # Process 512 samples per batch
+    validation_data=(X_val, y_val)  # Validate using the validation set
+)
+
+# Suppress scientific notation for better readability
+np.set_printoptions(suppress=True)
+# Make predictions on test data
+result = model.predict(X_test)
+
+for i, score in enumerate(result):
+    label = 'Positive' if score >= 0.5 else 'Negative'
+    print(f"Review {i}: {label} (Score: {score[0]:.4f})")
+
+
+
+
+single_review = X_test[0].reshape(1, -1)   # reshape because predict expects batch dimension
+prediction = model.predict(single_review)
+
+if prediction >= 0.5:
+    print("Positive Review")
+else:
+    print("Negative Review")
+
+
+
+# Initialize an array of zeros to store predicted labels
+y_pred = np.zeros(len(result))
+# Convert probabilities to binary labels (0 or 1)
+for i, score in enumerate(result):
+    y_pred[i] = np.round(score)
+
+print(y_pred[1])
+
+
+from sklearn import metrics
+# Compute Mean Absolute Error (MAE)
+mae = metrics.mean_absolute_error(y_test, y_pred)
+
+mae
